@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(lily)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare -Wno-unused-result -pedantic -g -rdynamic -fPIC")
 #set(CMAKE_BUILD_TYPE RELEASE)
 
