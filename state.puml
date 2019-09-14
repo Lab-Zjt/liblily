@@ -1,0 +1,51 @@
+@startuml LilyCallGraph
+
+start 
+: main;
+: 通过Dispatcher，\n将Main函数加入到一个Manager中，\n并启动该Manager，\n产生一个新线程;
+fork
+  : [子线程];
+  : Manager::Start;
+  while (无限循环)
+    : 从PreparedTask队列中取出任务;
+    if (Task队列为空) then
+      : 将一个eventfd加入到epoller中;
+      : 无限期的epoll_wait，\n直到上一步的eventfd被唤醒;
+    else
+      : 立即返回的epoll_wait;
+      : 将已就绪的fd对应的Task的状态设置为Ready;
+    endif
+    while (对于Task队列中的每一个Task)
+      if (Task的状态为Ready) then
+        : 将控制流交给该Task;
+        if (执行到IO阻塞的代码) then
+          : 将fd加入到当前线程的\nManager的epoller中;
+          : 将控制流交给Manager;
+        elseif (没有阻塞的代码) then
+          : 函数结束;
+          : 将该Task状态设置为Finished;
+          : Dispatcher的计数器-1;
+          : 如果Dispatcher的计数器归0，\n唤醒主线程的eventfd;
+          : 将控制流交给Manager;
+        elseif (执行到go函数) then
+          : Dispatcher计数器加1;
+          : 通过Dispatcher，\n将Task加入到一个Manager中;
+          : 如果该Manager未启动，\n则启动该Manager，\n产生一个新线程;
+          : 向该Manager的eventfd中写入数据，\n唤醒该Manager;
+          : 继续执行当前Task;
+        endif
+        : 将Task放回队列;
+      elseif (Task的状态为Blocking) then
+        : 将Task放回队列;
+      elseif (Task的状态为Finished) then
+        : 不将Task放回队列;
+      endif 
+    endwhile
+  endwhile
+fork again
+  : [主线程];
+  : 将一个eventfd加入epoller;
+  : 无限期的epoll_wait，\n直到上一步的eventfd被唤醒;
+end fork
+: exit;
+@enduml

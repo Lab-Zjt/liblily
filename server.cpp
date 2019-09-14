@@ -5,8 +5,6 @@
 #include <iostream>
 #include <sys/eventfd.h>
 #include <sys/epoll.h>
-#include <variant>
-#include <optional>
 template<typename T>
 using Ptr = std::unique_ptr<T>;
 
@@ -20,14 +18,14 @@ Arr<T> NewArr(size_t t) {
 
 using namespace lily;
 
-#define _case(var, chan, ...) Case(chan, [](typename decltype(chan)::value_type var){__VA_ARGS__})
+#define _case(var, chan, ...) CreateCase(chan, [](typename decltype(chan)::value_type var){__VA_ARGS__})
 
 Main(int argc, char **argv) {
   Channel<int> ci;
   Channel<double> cd;
   Channel<std::string> cs;
-  /*go([&]() {
-    Selector s(
+  go([&]() {
+    auto s = Select(
         _case(i, ci,
               std::cout << "int: " << i << std::endl;
         ),
@@ -41,7 +39,7 @@ Main(int argc, char **argv) {
     for (;;) {
       s.Select();
     }
-  });*/
+  });
   TCPServer server("127.0.0.1", 12998);
   int index = 0;
   for (;;) {
