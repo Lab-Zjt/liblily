@@ -22,35 +22,16 @@ namespace lily {
     Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday
   };
 
-  struct Timer : std::enable_shared_from_this<Timer> {
+  struct Timer {
     Channel<Duration> C;
     bool Stop = false;
-    explicit Timer(Duration after) {
-      auto ptr = shared_from_this();
-      go([after, ptr]() {
-        Duration d = std::chrono::high_resolution_clock::now().time_since_epoch().count() + after;
-        usleep(after / MicroSecond);
-        if (ptr->Stop)return;
-        ptr->C << d;
-      });
-    }
+    static std::shared_ptr<Timer> New(Duration after);
   };
 
-  struct Ticker : std::enable_shared_from_this<Ticker> {
+  struct Ticker {
     Channel<Duration> C;
     bool Stop = false;
-    Ticker(Duration after) {
-      auto ptr = shared_from_this();
-      go([after, ptr]() {
-        auto next = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-        for (;;) {
-          Duration d = next + after;
-          usleep(after / MicroSecond);
-          if (ptr->Stop)break;
-          ptr->C << d;
-        }
-      });
-    }
+    static std::shared_ptr<Ticker> New(Duration after);
   };
 }
 
