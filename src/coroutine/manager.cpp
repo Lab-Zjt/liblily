@@ -2,6 +2,7 @@
 #include "task.h"
 #include "dispatcher.h"
 #include <sys/eventfd.h>
+#include <signal.h>
 namespace lily {
   Manager::Manager() noexcept :
       m_tasks(),
@@ -13,7 +14,11 @@ namespace lily {
       m_id(pthread_self()),
       m_tasks_mtx(),
       m_wake_up(eventfd(0, 0)),
-      m_nothing_to_do(false) {}
+      m_nothing_to_do(false),
+      m_stop(false) {}
+  void Manager::Cancel() {
+    pthread_kill(m_id, SIGUSR1);
+  }
   void Manager::AddListenFd(int fd, epoll_event *ev) {
     m_epoller.Add(fd, ev);
   }
@@ -55,6 +60,7 @@ namespace lily {
   }
   void Manager::WaitForTask() {
     auto ready = Sleep();
+    if (errno == EINTR) { m_stop = true; }
     // 此次唤醒是Dispatcher唤醒的，所有任务均已结束，故结束该线程。
     if (ready == 1 && Dispatcher::Get().AllTaskFinished()) {
       pthread_exit(nullptr);
@@ -67,6 +73,7 @@ namespace lily {
   // 更新Task状态，对于有事件到来的Task，将其状态更新为Ready。
   void Manager::RenewTasks() {
     auto ready = m_epoller.Epoll(m_epoll_event, 0);
+    if (errno == EINTR) { m_stop = true; }
     // 如果事件较多，一次处理不完，则进行扩容。
     if (ready == m_epoll_event.size()) {
       m_epoll_event.resize(m_epoll_event.size() * 2);
@@ -78,7 +85,7 @@ namespace lily {
   }
   void Manager::Start() {
     try {
-      while (true) {
+      while (!m_stop) {
         // 从PreparedTask数组中加载Task
         LoadTasks();
         // 如果当前Task队列为空或全部进入Blocking状态，则进入无期限epoll_wait状态，否则进行无阻塞epoll_wait，只更新Task状态。

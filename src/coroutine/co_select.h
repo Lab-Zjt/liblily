@@ -23,6 +23,10 @@ namespace lily {
     return Case<T>(ch, std::forward<F>(f));
   }
 
+  struct DefaultCase {};
+
+  static Channel<DefaultCase> _default;
+
   template<typename ...Args>
   inline static void foreachHelper(Args ...args) {}
   // 模拟golang的select语法
@@ -34,6 +38,8 @@ namespace lily {
     // 防止析构
     std::vector<HandlerPtr> m_func_vec;
     Epoller m_epoll;
+    HandlerPtr m_default_handler;
+    bool m_has_default = false;
    public:
     // 初始化Selector
     template<typename T>
@@ -57,12 +63,28 @@ namespace lily {
       m_epoll.Add(t.chan.GetEventFd(), ev);
       return 0;
     }
+    int fillSelector(Case<DefaultCase> &&t) {
+      m_default_handler = HandlerPtr(new std::function<void()>(std::bind(
+          [this](Channel<DefaultCase> &ch, std::function<void(DefaultCase)> fn) {
+            // 调用回调函数
+            fn(DefaultCase{});
+          }, std::ref(t.chan), std::move(t.func))));
+      m_has_default = true;
+      return 0;
+    }
     explicit Selector(Case<Ts> &&...chans) {
       foreachHelper(fillSelector(std::move(chans))...);
     }
     void Select() {
       std::vector<epoll_event> ev(1);
-      m_epoll.Epoll(ev, -1);
+      if (m_has_default) {
+        if (m_epoll.Epoll(ev, 0) <= 0) {
+          (*m_default_handler)();
+          return;
+        }
+      } else {
+        m_epoll.Epoll(ev, -1);
+      }
       // 调用handle函数
       (*static_cast<std::function<void()> *>(ev.front().data.ptr))();
     }

@@ -4,6 +4,7 @@
 #include "task.h"
 #include <sys/eventfd.h>
 #include <unistd.h>
+#include <signal.h>
 
 namespace lily {
   _Dispatcher::_Dispatcher() noexcept :
@@ -48,7 +49,7 @@ namespace lily {
   }
   void _Dispatcher::PutTask(std::function<void()> &&fn) {
     // 令Task数和序号加1。
-    m_task_count++;
+    auto c = m_task_count++;
     auto this_index = m_index++;
     // 如果Manager数还未达到上限，新开启一个Manager。
     // 否则，直到对应的Manager启动为止，该线程进入睡眠。
@@ -64,6 +65,8 @@ namespace lily {
     }
   }
   void _Dispatcher::StartDispatcher(std::function<void()> &&main) {
+    signal(SIGUSR1, [](int sig) {});
+    signal(SIGPIPE, SIG_IGN);
     // 将main作为第一个Task传入。
     PutTask(std::move(main));
     // 等待所有Task结束。

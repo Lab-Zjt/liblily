@@ -123,17 +123,33 @@ namespace lily {
       return;
     }
   }
-  int Client::SetReadTimeout(int usec) {
-    struct timeval tv[1];
-    tv->tv_sec = usec / 1000000;
-    tv->tv_usec = usec % 1000000;
-    return setsockopt(m_sock.m_fd, SOL_SOCKET, SO_RCVTIMEO, tv, sizeof(timeval));
+  R<ssize_t, Error> Client::Read(lily::span<char> buf) {
+    auto c = read(m_sock.m_fd, buf.as_writable_chars(), buf.size());
+    if (c < 0) { return {c, ERRNO}; }
+    return {c, NoError};
   }
-  int Client::SetWriteTimeout(int usec) {
+  R<ssize_t, Error> Client::Write(lily::span<char> buf) {
+    auto c = write(m_sock.m_fd, buf.as_chars(), buf.size());
+    if (c < 0) { return {c, ERRNO}; }
+    return {c, NoError};
+  }
+  Error Client::SetReadTimeout(int usec) {
     struct timeval tv[1];
     tv->tv_sec = usec / 1000000;
     tv->tv_usec = usec % 1000000;
-    return setsockopt(m_sock.m_fd, SOL_SOCKET, SO_SNDTIMEO, tv, sizeof(timeval));
+    if (setsockopt(m_sock.m_fd, SOL_SOCKET, SO_RCVTIMEO, tv, sizeof(timeval) < 0)) {
+      return ERRNO;
+    }
+    return NoError;
+  }
+  Error Client::SetWriteTimeout(int usec) {
+    struct timeval tv[1];
+    tv->tv_sec = usec / 1000000;
+    tv->tv_usec = usec % 1000000;
+    if (setsockopt(m_sock.m_fd, SOL_SOCKET, SO_SNDTIMEO, tv, sizeof(timeval)) < 0) {
+      return ERRNO;
+    }
+    return NoError;
   }
   TCPServer::TCPServer(const char *path) : m_sock(AddressFamily::UnixSock, NetProtocol::TCP, 0) {
     m_sock.m_local = Address(path);
@@ -161,13 +177,13 @@ namespace lily {
       return;
     }
   }
-  std::unique_ptr<Client> TCPServer::Accept() {
+  R<Ref<Client>, Error> TCPServer::Accept() {
     Address remote(m_sock.m_local.GetFamily());
     socklen_t len = m_sock.m_local.AddressSize();
     int fd = accept(m_sock.m_fd, remote.Base(), &len);
     if (fd < 0) {
       perror("accept");
-      return nullptr;
+      return {nullptr, ERRNO};
     }
     Socket peer(fd);
     peer.m_peer = std::move(remote);
@@ -175,9 +191,9 @@ namespace lily {
     int err = getsockname(fd, peer.m_local.Base(), &len);
     if (err != 0) {
       perror("getsockname");
-      return nullptr;
+      return {New<Client>(std::move(peer)), ERRNO};
     }
-    return std::unique_ptr<Client>(new Client(std::move(peer)));
+    return {New<Client>(std::move(peer)), NoError};
   }
   int TCPServer::Backlog = 128;
   UDPServer::UDPServer(const char *ip, uint16_t port) : m_sock(GetFamily(ip), NetProtocol::UDP, 0) {
@@ -187,32 +203,34 @@ namespace lily {
       perror("bind");
     }
   }
-  int UDPServer::Read(void *buf, size_t size, lily::Address &addr) {
+  R<ssize_t, Error> UDPServer::Read(span<char> buf, lily::Address &addr) {
     addr = Address(m_sock.m_local.GetFamily());
     socklen_t len = addr.AddressSize();
-    int c = recvfrom(m_sock.m_fd, buf, size, 0, addr.Base(), &len);
+    int c = recvfrom(m_sock.m_fd, buf.as_writable_chars(), buf.size(), 0, addr.Base(), &len);
     if (c < 0) {
-      perror("recvfrom");
+      return {c, ERRNO};
     }
-    return c;
+    return {c, NoError};
   }
-  int UDPServer::Write(const void *buf, size_t size, const lily::Address &addr) {
-    int c = sendto(m_sock.m_fd, buf, size, 0, addr.Base(), addr.AddressSize());
+  R<ssize_t, Error> UDPServer::Write(span<char> buf, const lily::Address &addr) {
+    int c = sendto(m_sock.m_fd, buf.as_chars(), buf.size(), 0, addr.Base(), addr.AddressSize());
     if (c < 0) {
-      perror("sendto");
+      return {c, ERRNO};
     }
-    return c;
+    return {c, NoError};
   }
-  int UDPServer::SetReadTimeout(int usec) {
+  Error UDPServer::SetReadTimeout(int usec) {
     struct timeval tv[1];
     tv->tv_sec = usec / 1000000;
     tv->tv_usec = usec % 1000000;
-    return setsockopt(m_sock.m_fd, SOL_SOCKET, SO_RCVTIMEO, tv, sizeof(timeval));
+    if (setsockopt(m_sock.m_fd, SOL_SOCKET, SO_RCVTIMEO, tv, sizeof(timeval)) < 0) { return ERRNO; }
+    return NoError;
   }
-  int UDPServer::SetWriteTimeout(int usec) {
+  Error UDPServer::SetWriteTimeout(int usec) {
     struct timeval tv[1];
     tv->tv_sec = usec / 1000000;
     tv->tv_usec = usec % 1000000;
-    return setsockopt(m_sock.m_fd, SOL_SOCKET, SO_SNDTIMEO, tv, sizeof(timeval));
+    if (setsockopt(m_sock.m_fd, SOL_SOCKET, SO_SNDTIMEO, tv, sizeof(timeval)) < 0) { return ERRNO; }
+    return NoError;
   }
 }

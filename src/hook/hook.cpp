@@ -27,7 +27,9 @@ struct IOHook<io, Ret(*)(int, Args...)> {
     cur->SetStatus(Task::Blocking);
     cur->Yield();
     res = original(fd, args...);
+    auto save_errno = errno;
     mgr->DelListenFd(fd);
+    errno = save_errno;
     return res;
   }
 };
@@ -87,10 +89,12 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
     cur->SetStatus(Task::Blocking);
     mgr->CurrentTask()->Yield();
     res = original_connect(sockfd, addr, addrlen);
+    auto save_errno = errno;
     if (errno == EISCONN) {
       res = 0;
     }
     mgr->DelListenFd(sockfd);
+    errno = save_errno;
   }
   cur->SetStatus(Task::Running);
   return res;
@@ -112,7 +116,9 @@ int accept4(int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags) {
   cur->SetStatus(Task::Blocking);
   mgr->CurrentTask()->Yield();
   int fd = original_accept4(sockfd, addr, addrlen, (unsigned) flags | SOCK_NONBLOCK);
+  auto save_errno = errno;
   mgr->DelListenFd(sockfd);
+  errno = save_errno;
   return fd;
 }
 int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
@@ -177,7 +183,7 @@ int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout)
     return original_epoll_wait(epfd, events, maxevents, timeout);
   }
   auto ready = original_epoll_wait(epfd, events, maxevents, 0);
-  if (ready > 0) {
+  if (ready > 0 || timeout == 0) {
     return ready;
   }
   epoll_event ev[1];
@@ -187,7 +193,9 @@ int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout)
   cur->SetStatus(Task::Blocking);
   cur->Yield();
   ready = original_epoll_wait(epfd, events, maxevents, timeout);
+  auto save_errno = errno;
   mgr->DelListenFd(epfd);
+  errno = save_errno;
   return ready;
 }
 }

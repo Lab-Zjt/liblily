@@ -1,10 +1,13 @@
 #ifndef LIBLILY_SRC_NET_NET_H_
 #define LIBLILY_SRC_NET_NET_H_
 #include <memory>
+#include <iostream>
 #include <unistd.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/un.h>
+#include "../common/slice.h"
+#include "../interface/interface_basic.h"
 namespace lily {
   // 一个对TCP/UDP客户端/服务端的简单封装
   enum AddressFamily {
@@ -78,12 +81,12 @@ namespace lily {
     explicit Client(Socket &&sock) : m_sock(std::move(sock)) {}
     Client(NetProtocol proto, const char *path);
     Client(NetProtocol proto, const char *ip, uint16_t port);
-    ssize_t Read(void *buf, size_t len) { return read(m_sock.m_fd, buf, len); }
-    ssize_t Write(const void *buf, size_t len) { return write(m_sock.m_fd, buf, len); }
+    R<ssize_t, Error> Read(span<char> buf);
+    R<ssize_t, Error> Write(span<char> buf);
     const Address &LocalAddr() const { return m_sock.m_local; }
     const Address &PeerAddr() const { return m_sock.m_peer; }
-    int SetReadTimeout(int usec);
-    int SetWriteTimeout(int usec);
+    Error SetReadTimeout(int usec);
+    Error SetWriteTimeout(int usec);
   };
 
   // TCP服务端
@@ -95,7 +98,7 @@ namespace lily {
    public:
     TCPServer(const char *path);
     TCPServer(const char *ip, uint16_t port);
-    std::unique_ptr<Client> Accept();
+    R<Ref<Client>, Error> Accept();
   };
   // UDP服务端
   class UDPServer {
@@ -103,11 +106,11 @@ namespace lily {
     Socket m_sock;
    public:
     UDPServer(const char *ip, uint16_t port);
-    int Read(void *buf, size_t size, Address &addr);
-    int Write(const void *buf, size_t size, const Address &addr);
+    R<ssize_t, Error> Read(span<char> buf, Address &addr);
+    R<ssize_t, Error> Write(span<char> buf, const Address &addr);
     const Address &LocalAddr() const { return m_sock.m_local; }
-    int SetReadTimeout(int usec);
-    int SetWriteTimeout(int usec);
+    Error SetReadTimeout(int usec);
+    Error SetWriteTimeout(int usec);
   };
 }
 

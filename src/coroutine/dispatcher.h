@@ -54,6 +54,7 @@ namespace lily {
     void PutTask(std::function<void()> &&fn);
     // 启动分发器。
     void StartDispatcher(std::function<void()> &&main);
+    int GetTaskCount() const { return m_task_count; }
   };
   using Dispatcher = Singleton<_Dispatcher>;
 }

@@ -42,12 +42,14 @@ namespace lily {
     int m_wake_up;
     // 标识是否进入无期限epoll_wait。
     bool m_nothing_to_do;
+    bool m_stop;
    public:
     Manager() noexcept;
     void Init() {
       ThreadLocal<ManagerInit>::Get().init = true;
       ThreadLocal<ManagerInit>::Get().mgr_epoll_fd = m_epoller.GetFd();
     }
+    void Cancel();
     __attribute__((unused)) bool IsInitFinished() { return ThreadLocal<ManagerInit>::Get().init; }
     __attribute__((unused)) pthread_t ID() { return m_id; }
     __attribute__((unused)) Task *ThisTask() { return m_this_task.get(); }
