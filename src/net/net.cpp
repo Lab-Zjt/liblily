@@ -3,18 +3,18 @@
 namespace lily {
   Address::Address(lily::AddressFamily family) {
     if (family == AddressFamily::V4) {
-      m_base = std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr *>(new sockaddr_in));
+      m_base = std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr *>(new sockaddr_in{}));
     } else if (family == AddressFamily::V6) {
-      m_base = std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr *>(new sockaddr_in6));
+      m_base = std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr *>(new sockaddr_in6{}));
     } else if (family == AddressFamily::UnixSock) {
-      m_base = std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr *>(new sockaddr_un));
+      m_base = std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr *>(new sockaddr_un{}));
     } else {
       fprintf(stderr, "unknown address family: %d\n", family);
       return;
     }
     m_base->sa_family = family;
   }
-  Address::Address(const char *path) : m_base((sockaddr *) (new sockaddr_un)) {
+  Address::Address(const char *path) : m_base((sockaddr *) (new sockaddr_un{})) {
     auto len = strlen(path);
     if (len > sizeof(std::declval<sockaddr_un>().sun_path)) {
       fprintf(stderr, "Length Error: length of path should be less than 108.\n");
@@ -24,13 +24,13 @@ namespace lily {
   }
   Address::Address(const char *ip, uint16_t port) {
     if (IsIPv4(ip)) {
-      m_base = std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr *>(new sockaddr_in));
+      m_base = std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr *>(new sockaddr_in{}));
       int err = inet_pton(AddressFamily::V4, ip, &V4()->sin_addr);
       if (err != 1) perror("inet_pton");
       V4()->sin_family = AddressFamily::V4;
       V4()->sin_port = htons(port);
     } else {
-      m_base = std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr *>(new sockaddr_in6));
+      m_base = std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr *>(new sockaddr_in6{}));
       int err = inet_pton(AddressFamily::V6, ip, &V6()->sin6_addr);
       if (err != 1) perror("inet_pton");
       V6()->sin6_family = AddressFamily::V6;
@@ -153,6 +153,10 @@ namespace lily {
   }
   TCPServer::TCPServer(const char *path) : m_sock(AddressFamily::UnixSock, NetProtocol::TCP, 0) {
     m_sock.m_local = Address(path);
+    if (unlink(path) < 0 ) {
+//      perror("unlink");
+//      return;
+    }
     int err = bind(m_sock.m_fd, m_sock.m_local.Base(), m_sock.m_local.AddressSize());
     if (err != 0) {
       perror("bind");
@@ -182,7 +186,7 @@ namespace lily {
     socklen_t len = m_sock.m_local.AddressSize();
     int fd = accept(m_sock.m_fd, remote.Base(), &len);
     if (fd < 0) {
-      perror("accept");
+      // perror("accept");
       return {nullptr, ERRNO};
     }
     Socket peer(fd);
@@ -190,7 +194,7 @@ namespace lily {
     peer.m_local = Address(peer.m_peer.GetFamily());
     int err = getsockname(fd, peer.m_local.Base(), &len);
     if (err != 0) {
-      perror("getsockname");
+      // perror("getsockname");
       return {New<Client>(std::move(peer)), ERRNO};
     }
     return {New<Client>(std::move(peer)), NoError};

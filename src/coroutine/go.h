@@ -18,5 +18,9 @@ inline __attribute__((unused)) void yield() {
   manager->CurrentTask()->SetStatus(lily::Task::Ready);
   manager->CurrentTask()->Yield();
 }
+
+inline __attribute__((unused)) void exit_all() {
+  lily::Dispatcher::Get().Cancel();
+}
 #include "entry.h"
 #endif //LIBLILY_SRC_COROUTINE_GO_H_

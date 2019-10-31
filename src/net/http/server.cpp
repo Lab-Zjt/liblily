@@ -1,5 +1,6 @@
 #include "server.h"
 #include "../../coroutine/go.h"
+#include "../../common/log.h"
 
 namespace lily {
   namespace http {
@@ -14,7 +15,10 @@ namespace lily {
         if (err1 != NoError) {
           LogError << "accept error. " << err1.desc;
         }
-        if (conn == nullptr) continue;
+        if (conn == nullptr) {
+          if (err1 == EAGAIN || err1 == EBADF)break;
+          else continue;
+        }
         LogInfo << "connection from " << conn->PeerAddr().String() << " to " << conn->LocalAddr().String();
         go([this, conn = std::move(conn)]() {
           Request req(conn);

@@ -17,6 +17,8 @@ namespace lily {
       m_nothing_to_do(false),
       m_stop(false) {}
   void Manager::Cancel() {
+    // printf("kill %lu\n", m_id);
+    m_stop = true;
     pthread_kill(m_id, SIGUSR1);
   }
   void Manager::AddListenFd(int fd, epoll_event *ev) {
@@ -43,8 +45,7 @@ namespace lily {
     }
   }
   void Manager::WakeUp() {
-    uint64_t wp = 1;
-    write(m_wake_up, &wp, sizeof(wp));
+    eventfd_write(m_wake_up, 1);
   }
   int Manager::Sleep() {
     epoll_event ev[1];
@@ -56,7 +57,8 @@ namespace lily {
   void Manager::OnAwake() {
     uint64_t wp = 0;
     m_epoller.Del(m_wake_up);
-    read(m_wake_up, &wp, sizeof(wp));
+    //read(m_wake_up, &wp, sizeof(wp));
+    eventfd_read(m_wake_up, &wp);
   }
   void Manager::WaitForTask() {
     auto ready = Sleep();
@@ -116,6 +118,20 @@ namespace lily {
           } else if (cur->GetStatus() == Task::Finished) {}
           else { fprintf(stderr, "FATAL ERROR: TASK YIELD WITH RUNNING STATUS\n"); }
         }
+      }
+      // 接收到取消信号，强制运行所有协程至结束
+      // 此时由于所有系统调用都处于非阻塞状态，协程必须合适地处理Error，使得它能正常退出
+      // 也就是说协程不能进入无限循环，必须要有一个退出点
+      // TODO： 实现context使得协程可控
+      while (!m_tasks.empty()) {
+        auto cur = std::move(m_tasks.front());
+        m_tasks.pop();
+        if (cur->GetStatus() == Task::Finished) { continue; }
+        cur->SetStatus(Task::Running);
+        m_cur_task = cur.get();
+        cur->Resume();
+        m_cur_task = nullptr;
+        if (cur->GetStatus() != Task::Finished) { m_tasks.push(std::move(cur)); }
       }
     }
     catch (std::exception &e) {

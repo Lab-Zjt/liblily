@@ -1,6 +1,7 @@
 #ifndef LILY_SRC_COMMON_LOG_H_
 #define LILY_SRC_COMMON_LOG_H_
 #include "../coroutine/co_mutex.h"
+#include "../interface/io.h"
 #include <sstream>
 #include <unistd.h>
 namespace lily {
@@ -23,7 +24,10 @@ namespace lily {
 
 #define TOSTR(x) #x
 #define STR(x) TOSTR(x)
-#define CONTEXT __FILE__ ":" STR(__LINE__)
+//#define CONTEXT __FILE__ ":" STR(__LINE__)
+#define CONTEXT nullptr
+//#define FUNCTION __func__
+#define FUNCTION nullptr
 
   struct IterableBuf : public std::stringbuf {
     char *begin() { return this->pbase(); }
@@ -31,16 +35,21 @@ namespace lily {
   };
 
   class LogStream {
-    Writer &m_logger;
+    const Writer &m_logger;
     std::ostringstream m_os;
    public:
-    LogStream(Writer &logger,
+    LogStream(const Writer &logger,
               const char *context,
               const char *function,
               bool print_time = false,
               std::string_view prefix = "")
         : m_logger(logger) {
-      m_os << context << "[" << function << "]";
+      if (context != nullptr) {
+        m_os << context;
+      }
+      if (function != nullptr) {
+        m_os << context << "[" << function << "]";
+      }
       m_os << prefix;
       if (print_time) {
         auto tm = std::time(nullptr);
@@ -61,9 +70,12 @@ namespace lily {
     }
   };
 
-#define LogDebug lily::LogStream(lily::Stdout, CONTEXT, __func__, false, "[DEBUG]")
-#define LogError lily::LogStream(lily::Stderr, CONTEXT, __func__, true, "[ERROR]")
-#define LogInfo lily::LogStream(lily::Stdout, CONTEXT, __func__, true, "[INFO] ")
+  inline Writer DefaultLogWriter = lily::Stdout;
+  inline Writer DefaultLogErrorWriter = lily::Stderr;
+
+#define LogDebug lily::LogStream(DefaultLogWriter, CONTEXT, FUNCTION, true, "[DEBUG]")
+#define LogError lily::LogStream(DefaultLogErrorWriter, CONTEXT, FUNCTION, true, "[ERROR]")
+#define LogInfo lily::LogStream(DefaultLogWriter, CONTEXT, FUNCTION, true, "[INFO] ")
 }
 
 #endif

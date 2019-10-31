@@ -1,3 +1,5 @@
+#include "../common/common.h"
+
 interface Reader {
   R<ssize_t, Error> Read(lily::span<char> buf);
 }

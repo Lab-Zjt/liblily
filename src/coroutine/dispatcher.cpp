@@ -16,7 +16,9 @@ namespace lily {
       m_threads(),
       m_threads_mtx(),
       m_epoller(new Epoller),
-      m_wake_up(eventfd(0, 0)) {
+      m_wake_up(eventfd(0, 0)),
+      m_main_thread_id(pthread_self()),
+      m_stop(false) {
     // 预留空间，避免重分配带来的迭代器失效。
     m_managers.reserve(m_thread_num);
   }
@@ -24,8 +26,7 @@ namespace lily {
     // Task结束时调用该函数，使得Task数减1,Task数为0时唤醒主线程。
     auto c = --m_task_count;
     if (c == 0) {
-      uint64_t wp = 1;
-      write(m_wake_up, &wp, sizeof(wp));
+      eventfd_write(m_wake_up, 1);
     }
   }
   void _Dispatcher::WaitAllFinished() {
@@ -33,7 +34,14 @@ namespace lily {
     ev[0].data.ptr = this;
     ev[0].events = EPOLLIN;
     m_epoller->Add(m_wake_up, &ev[0]);
-    while (m_epoller->Epoll(ev) == -1) {}
+    while (m_epoller->Epoll(ev) == -1) {
+      if (errno == EINTR) {
+        for (auto &&m : m_managers) {
+          m->Cancel();
+        }
+        break;
+      }
+    }
     m_epoller->Del(m_wake_up);
   }
   void _Dispatcher::StartNewManager(std::function<void()> &&fn) {
@@ -65,12 +73,20 @@ namespace lily {
     }
   }
   void _Dispatcher::StartDispatcher(std::function<void()> &&main) {
-    signal(SIGUSR1, [](int sig) {});
+    signal(SIGUSR1, [](int sig) {
+      // printf("recv signal %lu\n", pthread_self());
+    });
     signal(SIGPIPE, SIG_IGN);
     // 将main作为第一个Task传入。
     PutTask(std::move(main));
     // 等待所有Task结束。
     WaitAllFinished();
+    if (m_stop) {
+      for (auto &&th :m_threads) {
+        th.join();
+      }
+      std::exit(0);
+    }
     if (m_task_count == 0) {
       // 唤醒所有Manager，以便Manager发现所有Task结束并退出其线程。
       for (const auto &m :m_managers) {
@@ -85,5 +101,10 @@ namespace lily {
       printf("Fatal Error: Task Count Become 1 Again\n");
       std::exit(-1);
     }
+  }
+  void _Dispatcher::Cancel() {
+    m_stop = true;
+    // printf("kill %lu", m_main_thread_id);
+    pthread_kill(m_main_thread_id, SIGUSR1);
   }
 }

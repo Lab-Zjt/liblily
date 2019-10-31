@@ -5,7 +5,6 @@
 #include "status_code.h"
 #include "../../interface/io.h"
 #include "../../common/slice.h"
-#include "../../common/log.h"
 
 namespace lily {
   namespace http {
@@ -47,7 +46,6 @@ namespace lily {
         str += "\r\n";
         auto[c1, err1] = m_writer.Write(span(str));
         if (err1 != NoError) {
-          LogError << "write header error. " << err1.desc;
           return {c1, err1};
         }
         return {c1, NoError};

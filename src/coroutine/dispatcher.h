@@ -39,6 +39,8 @@ namespace lily {
     std::unique_ptr<Epoller> m_epoller;
     // 用于唤醒Epoll的eventfd
     int m_wake_up;
+    pthread_t m_main_thread_id;
+    bool m_stop;
    public:
     _Dispatcher() noexcept;
     void TaskFinished();
@@ -55,6 +57,7 @@ namespace lily {
     // 启动分发器。
     void StartDispatcher(std::function<void()> &&main);
     int GetTaskCount() const { return m_task_count; }
+    void Cancel();
   };
   using Dispatcher = Singleton<_Dispatcher>;
 }

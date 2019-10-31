@@ -1,6 +1,5 @@
 #ifndef LILY_SRC_NET_HTTP_HANDLER_H_
 #define LILY_SRC_NET_HTTP_HANDLER_H_
-#include "../../common/log.h"
 #include <functional>
 namespace lily {
   namespace http {

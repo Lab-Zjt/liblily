@@ -21,7 +21,7 @@ namespace lily {
       void Mod(const std::string &key, const std::string &val) {
         m_header[key] = val;
       }
-      decltype(auto) Get() const {
+      const auto &Get() const {
         return m_header;
       }
     };
