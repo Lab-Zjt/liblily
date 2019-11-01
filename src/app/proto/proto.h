@@ -13,12 +13,6 @@ using namespace lily;
 
 namespace proto {
 
-  enum NotifyID {
-    StartServer = 1,
-    Log = 2,
-    StopServer = 3,
-  };
-
   class NotifySender {
     Writer m_w;
    public:
@@ -39,20 +33,20 @@ namespace proto {
 
   struct StartServerNotify {
    using_reflect(StartServerNotify)
-   reflect_field(int, cmd_id, = StartServer)
+   reflect_field(const int, cmd_id, = 1)
    reflect_field(std::string, addr, = "")
    reflect_field(uint16_t, port, = 0)
   };
 
   struct LogNotify {
    using_reflect(LogNotify)
-   reflect_field(int, cmd_id, = Log)
+   reflect_field(const int, cmd_id, = 2)
    reflect_field(std::string, log, = "")
   };
 
   struct StopServerNotify {
    using_reflect(StopServerNotify)
-   reflect_field(int, cmd_id, = StopServer)
+   reflect_field(const int, cmd_id, = 3)
    reflect_field(std::string, reason, = "")
   };
 
@@ -76,8 +70,9 @@ namespace proto {
    public:
     ProtoHandler() {}
     template<typename Notify, typename Fn>
-    void RegisterHandler(int cmd_id, Fn &&fn) {
-      m_handler[cmd_id] = [fn = std::forward<Fn>(fn)](const Packet &packet) -> Error {
+    void RegisterHandler(Fn &&fn) {
+      Notify notify;
+      m_handler[notify.cmd_id] = [fn = std::forward<Fn>(fn)](const Packet &packet) -> Error {
         Notify notify = Deserializer::Deserialize<Notify>(packet);
         return fn(notify);
       };
@@ -105,7 +100,6 @@ namespace proto {
       return NoError;
     }
   };
-#define REGISTER_NOTIFY_HANDLER(notify, fn) RegisterHandler<proto::notify##Notify>(proto::NotifyID::notify, fn)
 }
 
 #endif //LILY_SRC_APP_PROTO_PROTO_H_

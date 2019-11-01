@@ -87,6 +87,14 @@ namespace lily {
       }
     }
   }
+  Socket &Socket::operator=(lily::Socket &&other) {
+    if (&other == this) return *this;
+    if (m_fd >= 0) close(m_fd);
+    m_fd = other.m_fd, other.m_fd = -1;
+    m_local = std::move(other.m_local);
+    m_peer = std::move(other.m_peer);
+    return *this;
+  }
   Socket::Socket(lily::Socket &&other) noexcept :
       m_fd(other.m_fd),
       m_local(std::move(other.m_local)),
@@ -151,35 +159,32 @@ namespace lily {
     }
     return NoError;
   }
-  TCPServer::TCPServer(const char *path) : m_sock(AddressFamily::UnixSock, NetProtocol::TCP, 0) {
-    m_sock.m_local = Address(path);
-    if (unlink(path) < 0 ) {
-//      perror("unlink");
-//      return;
+  R<Ref<TCPServer>, Error> TCPServer::ListenTCP(const char *path) {
+    auto listener = std::make_shared<TCPServer>();
+    listener->m_sock = Socket(AddressFamily::UnixSock, NetProtocol::TCP, 0);
+    listener->m_sock.m_local = Address(path);
+    if (unlink(path) < 0) {
+      return {nullptr, ERRNO};
     }
-    int err = bind(m_sock.m_fd, m_sock.m_local.Base(), m_sock.m_local.AddressSize());
-    if (err != 0) {
-      perror("bind");
-      return;
+    if (bind(listener->m_sock.m_fd, listener->m_sock.m_local.Base(), listener->m_sock.m_local.AddressSize()) < 0) {
+      return {nullptr, ERRNO};
     }
-    err = listen(m_sock.m_fd, TCPServer::Backlog);
-    if (err != 0) {
-      perror("listen");
-      return;
+    if (listen(listener->m_sock.m_fd, TCPServer::Backlog) < 0) {
+      return {nullptr, ERRNO};
     }
+    return {listener, NoError};
   }
-  TCPServer::TCPServer(const char *ip, uint16_t port) : m_sock(GetFamily(ip), NetProtocol::TCP, 0) {
-    m_sock.m_local = Address(ip, port);
-    int err = bind(m_sock.m_fd, m_sock.m_local.Base(), m_sock.m_local.AddressSize());
-    if (err != 0) {
-      perror("bind");
-      return;
+  R<Ref<TCPServer>, Error> TCPServer::ListenTCP(const char *ip, uint16_t port) {
+    auto listener = std::make_shared<TCPServer>();
+    listener->m_sock = Socket(GetFamily(ip), NetProtocol::TCP, 0);
+    listener->m_sock.m_local = Address(ip, port);
+    if (bind(listener->m_sock.m_fd, listener->m_sock.m_local.Base(), listener->m_sock.m_local.AddressSize()) < 0) {
+      return {nullptr, ERRNO};
     }
-    err = listen(m_sock.m_fd, TCPServer::Backlog);
-    if (err != 0) {
-      perror("listen");
-      return;
+    if (listen(listener->m_sock.m_fd, TCPServer::Backlog) < 0) {
+      return {nullptr, ERRNO};
     }
+    return {listener, NoError};
   }
   R<Ref<Client>, Error> TCPServer::Accept() {
     Address remote(m_sock.m_local.GetFamily());

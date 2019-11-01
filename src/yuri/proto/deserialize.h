@@ -8,7 +8,6 @@ namespace proto {
 
   class Deserializer {
    private:
-
     static Type GetType(const std::string &str, int &off) {
       int res = StrToInt(str.data() + off);
       off += int_size;
@@ -25,95 +24,6 @@ namespace proto {
 
     inline static std::unordered_map<reflect::TypeID, DeserializeFunc> deserialize_map;
 
-    template<typename T>
-    static bool DeserializeImpl(const std::string &str,
-                                int &off,
-                                void *ptr,
-                                bool parse_type = true,
-                                Type type = static_cast<Type >(0),
-                                int s = 0) {
-      if (parse_type) {
-        type = GetType(str, off);
-        s = GetSize(str, off);
-      }
-      if constexpr (std::is_same_v<std::string, T>) {
-        if (type != String) {
-          fprintf(stderr, "error: parse string type failed.\n");
-          return false;
-        }
-        std::string &res = *static_cast<std::string *>(ptr);
-        res = str.substr(off, s);
-        off += s;
-        return true;
-      } else if constexpr (std::is_arithmetic_v<T> || std::is_enum_v<T>) {
-        if (type != Number) {
-          fprintf(stderr, "error: parse number type failed.\n");
-          return false;
-        }
-        if (s != sizeof(T)) {
-          fprintf(stderr, "error: parse number int_size failed.\n");
-          return false;
-        }
-        for (int i = 0; i < sizeof(T); ++i) {
-          static_cast<char *>(ptr)[i] = str[off + i];
-        }
-        off += sizeof(T);
-        return true;
-      } else if constexpr (reflect::is_shared_ptr_v<T>) {
-        using V = typename T::value_type;
-        std::shared_ptr<V> &res = *static_cast<std::shared_ptr<V> *>(ptr);
-        if (type == Null) {
-          res = nullptr;
-          return true;
-        }
-        return DeserializeImpl<V>(str, off, res.get(), false, type, s);
-      } else if constexpr (reflect::is_iterable_v<T>) {
-        using V = typename T::value_type;
-        T &res = *static_cast<T *>(ptr);
-        V v;
-        for (int i = 0; i < s; ++i) {
-          if (!DeserializeImpl<V>(str, off, &v)) {
-            fprintf(stderr, "parse iterable element failed.\n");
-            return false;
-          }
-          res.insert(res.end(), std::move(v));
-        }
-        return true;
-      } else if constexpr (reflect::is_pair_v<T>) {
-        using K1 = typename std::remove_cv_t<typename T::first_type>;
-        using K2 = typename T::second_type;
-        T &res = *static_cast<T *>(ptr);
-        if (!DeserializeImpl<K1>(str, off, reinterpret_cast<void *>(const_cast<K1 *>(&res.first)))) {
-          fprintf(stderr, "parse pair first failed.\n");
-          return false;
-        }
-        if (!DeserializeImpl<K2>(str, off, reinterpret_cast<void *>(&res.second))) {
-          fprintf(stderr, "parse pair second failed.\n");
-          return false;
-        }
-        return true;
-      } else if constexpr (reflect::is_reflect_v<T>) {
-        const std::vector<reflect::FieldInfo> &info_vec = T::get_field_info_vec();
-        if (s != info_vec.size()) {
-          fprintf(stderr, "parse reflect field int_size failed. field count is %lu, but get %d.\n", info_vec.size(), s);
-          return false;
-        }
-        for (auto &&info : info_vec) {
-          if (!deserialize_map[info.type_id](str,
-                                             off,
-                                             static_cast<char *>(ptr) + info.offset,
-                                             true,
-                                             static_cast<Type >(0),
-                                             0)) {
-            fprintf(stderr, "parse reflect field failed.\n");
-            return false;
-          };
-        }
-        return true;
-      } else {
-        static_assert(!reflect::is_reflect_v<T>, "can not deserialize");
-      }
-    }
     static bool IgnoreField(const std::string &str, int &off) {
       auto type = GetType(str, off);
       auto s = GetSize(str, off);
@@ -132,6 +42,103 @@ namespace proto {
         }
       }
       return true;
+    }
+    template<typename T>
+    static bool DeserializeImpl(const std::string &str,
+                                int &off,
+                                void *ptr,
+                                bool parse_type = true,
+                                Type type = static_cast<Type >(0),
+                                int s = 0) {
+      // for const field, should not deserialize, just ignore them.
+      if constexpr (std::is_const_v<T>) {
+        return IgnoreField(str, off);
+      } else {
+        if (parse_type) {
+          type = GetType(str, off);
+          s = GetSize(str, off);
+        }
+        if constexpr (std::is_same_v<std::string, T>) {
+          if (type != String) {
+            fprintf(stderr, "error: parse string type failed.\n");
+            return false;
+          }
+          std::string &res = *static_cast<std::string *>(ptr);
+          res = str.substr(off, s);
+          off += s;
+          return true;
+        } else if constexpr (std::is_arithmetic_v<T> || std::is_enum_v<T>) {
+          if (type != Number) {
+            fprintf(stderr, "error: parse number type failed.\n");
+            return false;
+          }
+          if (s != sizeof(T)) {
+            fprintf(stderr, "error: parse number int_size failed.\n");
+            return false;
+          }
+          for (int i = 0; i < sizeof(T); ++i) {
+            static_cast<char *>(ptr)[i] = str[off + i];
+          }
+          off += sizeof(T);
+          return true;
+        } else if constexpr (reflect::is_shared_ptr_v<T>) {
+          using V = typename T::value_type;
+          std::shared_ptr<V> &res = *static_cast<std::shared_ptr<V> *>(ptr);
+          if (type == Null) {
+            res = nullptr;
+            return true;
+          }
+          return DeserializeImpl<V>(str, off, res.get(), false, type, s);
+        } else if constexpr (reflect::is_iterable_v<T>) {
+          using V = typename T::value_type;
+          T &res = *static_cast<T *>(ptr);
+          V v;
+          for (int i = 0; i < s; ++i) {
+            if (!DeserializeImpl<V>(str, off, &v)) {
+              fprintf(stderr, "parse iterable element failed.\n");
+              return false;
+            }
+            res.insert(res.end(), std::move(v));
+          }
+          return true;
+        } else if constexpr (reflect::is_pair_v<T>) {
+          using K1 = typename std::remove_cv_t<typename T::first_type>;
+          using K2 = typename T::second_type;
+          T &res = *static_cast<T *>(ptr);
+          if (!DeserializeImpl<K1>(str, off, reinterpret_cast<void *>(const_cast<K1 *>(&res.first)))) {
+            fprintf(stderr, "parse pair first failed.\n");
+            return false;
+          }
+          if (!DeserializeImpl<K2>(str, off, reinterpret_cast<void *>(&res.second))) {
+            fprintf(stderr, "parse pair second failed.\n");
+            return false;
+          }
+          return true;
+        } else if constexpr (reflect::is_reflect_v<T>) {
+          const std::vector<reflect::FieldInfo> &info_vec = T::get_field_info_vec();
+          if (s != info_vec.size()) {
+            fprintf(stderr,
+                    "parse reflect field int_size failed. field count is %lu, but get %d.\n",
+                    info_vec.size(),
+                    s);
+            return false;
+          }
+          for (auto &&info : info_vec) {
+            if (!deserialize_map[info.type_id](str,
+                                               off,
+                                               static_cast<char *>(ptr) + info.offset,
+                                               true,
+                                               static_cast<Type >(0),
+                                               0)) {
+              fprintf(stderr, "parse reflect field failed.\n");
+              return false;
+            };
+          }
+          return true;
+        } else {
+          static_assert(!reflect::is_reflect_v<T>, "can not deserialize");
+        }
+      }
     }
    public:
 

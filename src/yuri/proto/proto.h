@@ -31,7 +31,7 @@ namespace proto {
     return u.str;
   }
 
-  int StrToInt(const char *str) {
+  inline int StrToInt(const char *str) {
     union {
       IntString str;
       int i;
@@ -42,7 +42,7 @@ namespace proto {
     return u.i;
   }
 
-  std::string &operator+=(std::string &str, IntString arr) {
+  inline std::string &operator+=(std::string &str, IntString arr) {
     str.append(arr.str, int_size);
     return str;
   }

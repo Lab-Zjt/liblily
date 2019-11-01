@@ -11,7 +11,7 @@ namespace lily {
           break;
         }
         // Endless Loop
-        auto[conn, err1] = m_server.Accept();
+        auto[conn, err1] = m_server->Accept();
         if (err1 != NoError) {
           LogError << "accept error. " << err1.desc;
         }

@@ -29,7 +29,7 @@ namespace lily {
    private:
     friend class Socket;
    private:
-    std::unique_ptr<sockaddr> m_base;
+    std::unique_ptr<sockaddr> m_base = nullptr;
    private:
     sockaddr_in *V4() { return reinterpret_cast<sockaddr_in *>(Base()); }
     sockaddr_in6 *V6() { return reinterpret_cast<sockaddr_in6 *>(Base()); }
@@ -68,7 +68,7 @@ namespace lily {
     explicit Socket(int fd) : m_fd(fd) {}
     Socket(const Socket &) = delete;
     Socket &operator=(const Socket &) = delete;
-    Socket &operator=(Socket &&) = delete;
+    Socket &operator=(Socket &&);
     Socket(Socket &&other) noexcept;
     int GetFd() const { return m_fd; }
   };
@@ -96,8 +96,8 @@ namespace lily {
    private:
     Socket m_sock;
    public:
-    TCPServer(const char *path);
-    TCPServer(const char *ip, uint16_t port);
+    static R<Ref<TCPServer>, Error> ListenTCP(const char *path);
+    static R<Ref<TCPServer>, Error> ListenTCP(const char *ip, uint16_t port);
     R<Ref<Client>, Error> Accept();
   };
   // UDP服务端

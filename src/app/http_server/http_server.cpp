@@ -1,9 +1,9 @@
 #include <fstream>
-#include "../net/http/server.h"
-#include "../net/http/mime.h"
-#include "../coroutine/go.h"
-#include "../common/log.h"
-#include "proto/proto.h"
+#include "../../net/http/server.h"
+#include "../../net/http/mime.h"
+#include "../../coroutine/go.h"
+#include "../../common/log.h"
+#include "../../app/proto/proto.h"
 
 using namespace lily;
 
@@ -55,8 +55,7 @@ Main(int argc, char *argv[]) {
   auto w = New<proto::LogWriter>(client);
   DefaultLogWriter = w;
   DefaultLogErrorWriter = w;
-  handle.REGISTER_NOTIFY_HANDLER(
-      StartServer,
+  handle.RegisterHandler<proto::StartServerNotify>(
       [](const proto::StartServerNotify &notify) mutable {
         go([notify]() mutable {
           LogInfo << "Listen at " << notify.addr << ":" << std::to_string(notify.port);
@@ -65,8 +64,7 @@ Main(int argc, char *argv[]) {
         });
         return NoError;
       });
-  handle.REGISTER_NOTIFY_HANDLER(
-      StopServer,
+  handle.RegisterHandler<proto::StopServerNotify>(
       [](const proto::StopServerNotify &notify) mutable {
         exit_all();
         return NoError;
