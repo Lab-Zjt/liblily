@@ -37,11 +37,23 @@ ControllerView::ControllerView()
   QObject::connect(&m_start, &QPushButton::clicked, this, &ControllerView::onStartButtonClick);
   QObject::connect(&m_stop, &QPushButton::clicked, this, &ControllerView::onStopButtonClick);
   QObject::connect(&m_timer, &QTimer::timeout, this, &ControllerView::onTick);
-  m_ctl.RegisterHandler<proto::LogNotify>([this](const proto::LogNotify &notify) {
-    std::lock_guard lock(m_mtx);
-    m_actions += [log = notify.log, this]() { m_log.append(QString::fromStdString(log)); };
-    return NoError;
-  }
+  m_ctl.RegisterHandler<proto::LogNotify>(
+      [this](const proto::LogNotify &notify) {
+        std::lock_guard lock(m_mtx);
+        m_actions += [log = notify.log, this]() { m_log.append(QString::fromStdString(log)); };
+        return NoError;
+      }
+  );
+  m_ctl.RegisterHandler<proto::StartServerFailedNotify>(
+      [this](const proto::StartServerFailedNotify &notify) {
+        std::lock_guard lock(m_mtx);
+        m_actions += [this]() {
+          m_running = false;
+          m_stop.hide();
+          m_start.show();
+        };
+        return NoError;
+      }
   );
 }
 

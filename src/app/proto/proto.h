@@ -50,6 +50,12 @@ namespace proto {
    reflect_field(std::string, reason, = "")
   };
 
+  struct StartServerFailedNotify {
+   using_reflect(StartServerFailedNotify)
+   reflect_field(const int, cmd_id, = 4)
+   reflect_field(std::string, reason, = "")
+  };
+
   class LogWriter {
     Writer m_w;
    public:
@@ -69,10 +75,10 @@ namespace proto {
     std::unordered_map<int, Handler> m_handler;
    public:
     ProtoHandler() {}
-    template<typename Notify, typename Fn>
-    void RegisterHandler(Fn &&fn) {
+    template<typename Notify>
+    void RegisterHandler(std::function<Error(const Notify &)> &&fn) {
       Notify notify;
-      m_handler[notify.cmd_id] = [fn = std::forward<Fn>(fn)](const Packet &packet) -> Error {
+      m_handler[notify.cmd_id] = [fn = std::move(fn)](const Packet &packet) -> Error {
         Notify notify = Deserializer::Deserialize<Notify>(packet);
         return fn(notify);
       };

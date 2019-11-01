@@ -13,15 +13,19 @@ namespace lily {
       Handler m_handler;
       bool m_stop = false;
      public:
-      Server(const char *ip, uint16_t port, Handler handler) : m_handler(std::move(handler)) {
+      Server() = default;
+      static R<Ref<Server>, Error> Listen(const char *ip, uint16_t port, Handler handler) {
+        auto server = New<Server>();
+        server->m_handler = std::move(handler);
         Error err;
-        tie(m_server, err) = TCPServer::ListenTCP(ip, port);
+        tie(server->m_server, err) = TCPServer::ListenTCP(ip, port);
         if (err != NoError) {
-          std::cerr << "Listen TCP failed.\n";
+          return {nullptr, err};
         }
+        return {server, NoError};
       }
       void Stop() { m_stop = true; }
-      void Serve() ;
+      void Serve();
     };
   }
 }

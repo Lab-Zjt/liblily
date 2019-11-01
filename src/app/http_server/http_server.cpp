@@ -51,16 +51,28 @@ void handler(const http::Request &req, http::Response &rsp) {
 
 Main(int argc, char *argv[]) {
   proto::ProtoHandler handle;
-  auto client = New<Client>(NetProtocol::TCP, "/tmp/http_server_controller");
+  auto[client, err] = Client::Connect(NetProtocol::TCP, "/tmp/http_server_controller");
+  if (err != NoError) {
+    std::cerr << "Connect to controller failed. " << err.desc << "\n";
+    return -1;
+  }
   auto w = New<proto::LogWriter>(client);
   DefaultLogWriter = w;
   DefaultLogErrorWriter = w;
   handle.RegisterHandler<proto::StartServerNotify>(
-      [](const proto::StartServerNotify &notify) mutable {
-        go([notify]() mutable {
+      [client = client](const proto::StartServerNotify &notify) mutable {
+        go([notify, client = std::move(client)]() mutable {
+          auto[server, err] = http::Server::Listen(notify.addr.c_str(), notify.port, handler);
+          if (err != NoError) {
+            LogError << "Listen at " << notify.addr << ":" << notify.port << " failed.";
+            proto::StartServerFailedNotify n;
+            n.reason = err.desc;
+            proto::SendNotify(client, n);
+            exit_all();
+            return;
+          }
           LogInfo << "Listen at " << notify.addr << ":" << std::to_string(notify.port);
-          http::Server server(notify.addr.c_str(), notify.port, handler);
-          server.Serve();
+          server->Serve();
         });
         return NoError;
       });

@@ -99,37 +99,42 @@ namespace lily {
       m_fd(other.m_fd),
       m_local(std::move(other.m_local)),
       m_peer(std::move(other.m_peer)) { other.m_fd = -1; }
-
-  Client::Client(lily::NetProtocol proto, const char *path) : m_sock(AddressFamily::UnixSock, proto, 0) {
-    m_sock.m_peer = Address(path);
-    m_sock.m_local = Address(m_sock.m_peer.GetFamily());
-    int err = connect(m_sock.m_fd, m_sock.m_peer.Base(), m_sock.m_peer.AddressSize());
+  R<Ref<Client>, Error> Client::Connect(lily::NetProtocol proto, const char *path) {
+    auto conn = New<Client>();
+    conn->m_sock = Socket(AddressFamily::UnixSock, proto, 0);
+    conn->m_sock.m_peer = Address(path);
+    conn->m_sock.m_local = Address(conn->m_sock.m_peer.GetFamily());
+    int err = connect(conn->m_sock.m_fd, conn->m_sock.m_peer.Base(), conn->m_sock.m_peer.AddressSize());
     if (err != 0) {
-      perror("connect");
-      return;
+      return {nullptr, ERRNO};
     }
-    socklen_t len = m_sock.m_local.AddressSize();
-    err = getsockname(m_sock.m_fd, m_sock.m_local.Base(), &len);
+    socklen_t len = conn->m_sock.m_local.AddressSize();
+    err = getsockname(conn->m_sock.m_fd, conn->m_sock.m_local.Base(), &len);
     if (err != 0) {
-      perror("getosockname");
-      return;
+      return {nullptr, ERRNO};
     }
+    return {conn, NoError};
   }
-  Client::Client(lily::NetProtocol proto, const char *ip, uint16_t port) :
-      m_sock(GetFamily(ip), proto, 0) {
-    m_sock.m_peer = Address(ip, port);
-    m_sock.m_local = Address(m_sock.m_peer.GetFamily());
-    int err = connect(m_sock.m_fd, m_sock.m_peer.Base(), m_sock.m_peer.AddressSize());
+  R<Ref<Client>, Error> Client::Connect(lily::NetProtocol proto, const char *ip, uint16_t port) {
+    auto conn = New<Client>();
+    conn->m_sock = Socket(GetFamily(ip), proto, 0);
+    conn->m_sock.m_peer = Address(ip, port);
+    conn->m_sock.m_local = Address(conn->m_sock.m_peer.GetFamily());
+    int err = connect(conn->m_sock.m_fd, conn->m_sock.m_peer.Base(), conn->m_sock.m_peer.AddressSize());
     if (err != 0) {
-      perror("connect");
-      return;
+      return {nullptr, ERRNO};
     }
-    socklen_t len = m_sock.m_local.AddressSize();
-    err = getsockname(m_sock.m_fd, m_sock.m_local.Base(), &len);
+    socklen_t len = conn->m_sock.m_local.AddressSize();
+    err = getsockname(conn->m_sock.m_fd, conn->m_sock.m_local.Base(), &len);
     if (err != 0) {
-      perror("getosockname");
-      return;
+      return {nullptr, ERRNO};
     }
+    return {conn, NoError};
+  }
+  Ref<Client> Client::FromSocket(lily::Socket &&sock) {
+    auto conn = New<Client>();
+    conn->m_sock = std::move(sock);
+    return conn;
   }
   R<ssize_t, Error> Client::Read(lily::span<char> buf) {
     auto c = read(m_sock.m_fd, buf.as_writable_chars(), buf.size());
@@ -199,10 +204,9 @@ namespace lily {
     peer.m_local = Address(peer.m_peer.GetFamily());
     int err = getsockname(fd, peer.m_local.Base(), &len);
     if (err != 0) {
-      // perror("getsockname");
-      return {New<Client>(std::move(peer)), ERRNO};
+      return {Client::FromSocket(std::move(peer)), ERRNO};
     }
-    return {New<Client>(std::move(peer)), NoError};
+    return {Client::FromSocket(std::move(peer)), NoError};
   }
   int TCPServer::Backlog = 128;
   UDPServer::UDPServer(const char *ip, uint16_t port) : m_sock(GetFamily(ip), NetProtocol::UDP, 0) {

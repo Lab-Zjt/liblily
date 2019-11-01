@@ -78,9 +78,11 @@ namespace lily {
    private:
     Socket m_sock;
    public:
-    explicit Client(Socket &&sock) : m_sock(std::move(sock)) {}
-    Client(NetProtocol proto, const char *path);
+    Client() = default;
     Client(NetProtocol proto, const char *ip, uint16_t port);
+    static R<Ref<Client>, Error> Connect(NetProtocol proto, const char *path);
+    static R<Ref<Client>, Error> Connect(NetProtocol proto, const char *ip, uint16_t port);
+    static Ref<Client> FromSocket(Socket &&sock);
     R<ssize_t, Error> Read(span<char> buf);
     R<ssize_t, Error> Write(span<char> buf);
     const Address &LocalAddr() const { return m_sock.m_local; }
