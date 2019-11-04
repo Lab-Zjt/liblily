@@ -18,12 +18,12 @@ class Controller {
       return;
     }
   }
-  Error StartNewServer(const std::string &ip, uint16_t port) {
+  Error StartNewServer(const std::string &ip, uint16_t port, const std::string& root) {
     if (system("./http_server &") < 0) {
       perror("http_server");
       return Error{"create sub process failed"};
     }
-    std::thread([this, ip = ip, port]() -> Error {
+    std::thread([this, ip = ip, port, root = root]() -> Error {
       auto[conn, err] = m_server->Accept();
       if (err != NoError && conn == nullptr) {
         return err;
@@ -32,6 +32,7 @@ class Controller {
       proto::StartServerNotify notify;
       notify.addr = ip;
       notify.port = port;
+      notify.root = root;
       err = proto::SendNotify(conn, notify);
       if (err != NoError) {
         return err;

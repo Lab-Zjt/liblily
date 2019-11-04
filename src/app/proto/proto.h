@@ -36,6 +36,7 @@ namespace proto {
    reflect_field(const int, cmd_id, = 1)
    reflect_field(std::string, addr, = "")
    reflect_field(uint16_t, port, = 0)
+   reflect_field(std::string, root, = "")
   };
 
   struct LogNotify {

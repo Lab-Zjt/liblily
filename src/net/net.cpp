@@ -168,9 +168,7 @@ namespace lily {
     auto listener = std::make_shared<TCPServer>();
     listener->m_sock = Socket(AddressFamily::UnixSock, NetProtocol::TCP, 0);
     listener->m_sock.m_local = Address(path);
-    if (unlink(path) < 0) {
-      return {nullptr, ERRNO};
-    }
+    unlink(path);
     if (bind(listener->m_sock.m_fd, listener->m_sock.m_local.Base(), listener->m_sock.m_local.AddressSize()) < 0) {
       return {nullptr, ERRNO};
     }

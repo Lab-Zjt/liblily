@@ -28,23 +28,28 @@ void countReqTimes(const http::Request &req, http::Response &rsp) {
   rsp.header.Add("Set-Cookie", "req_count=" + std::to_string(req_count + 1));
 }
 
-void handler(const http::Request &req, http::Response &rsp) {
+void handler(const http::Request &req, http::Response &rsp, const std::string &root) {
   if (req.path == "/task_count") {
     auto count = std::to_string(lily::Dispatcher::Get().GetTaskCount());
     LogInfo << "task count is " << count;
     rsp.Write(span(count));
     return;
   }
-  auto str = read_all("." + req.path);
-  if (str) {
-    rsp.header.Add("Content-Type", get_mime(req.path));
-    if (auto[c, err] = rsp.Write(span(*str)); err != NoError) {
-      LogError << "write back failed. " << err.desc;
-    } else {
-      LogDebug << "write " << c << " bytes";
-    }
-  } else {
+  // avoid hacker :(
+  if (req.path.find("/../") != std::string::npos) {
     http::NotFound(req, rsp);
+  } else {
+    auto str = read_all(root + req.path);
+    if (str) {
+      rsp.header.Add("Content-Type", get_mime(req.path));
+      if (auto[c, err] = rsp.Write(span(*str)); err != NoError) {
+        LogError << "write back failed. " << err.desc;
+      } else {
+        LogDebug << "write " << c << " bytes";
+      }
+    } else {
+      http::NotFound(req, rsp);
+    }
   }
   LogInfo << req.method << " " << req.path << " " << rsp.status_code;
 }
@@ -62,7 +67,12 @@ Main(int argc, char *argv[]) {
   handle.RegisterHandler<proto::StartServerNotify>(
       [client = client](const proto::StartServerNotify &notify) mutable {
         go([notify, client = std::move(client)]() mutable {
-          auto[server, err] = http::Server::Listen(notify.addr.c_str(), notify.port, handler);
+          auto[server, err] = http::Server::Listen(
+              notify.addr.c_str(),
+              notify.port,
+              [notify](const http::Request &req, http::Response &rsp) {
+                handler(req, rsp, notify.root);
+              });
           if (err != NoError) {
             LogError << "Listen at " << notify.addr << ":" << notify.port << " failed.";
             proto::StartServerFailedNotify n;
@@ -71,7 +81,8 @@ Main(int argc, char *argv[]) {
             exit_all();
             return;
           }
-          LogInfo << "Listen at " << notify.addr << ":" << std::to_string(notify.port);
+          LogInfo << "Listen at " << notify.addr << ":" << std::to_string(notify.port) << " Work Directory: "
+                  << notify.root;
           server->Serve();
         });
         return NoError;

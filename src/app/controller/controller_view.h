@@ -23,10 +23,12 @@ class ControllerView : public QWidget {
  private:
   QLineEdit m_addr;
   QLineEdit m_port;
+  QLineEdit m_root;
   QPushButton m_start;
   QPushButton m_stop;
   QLabel m_addr_label;
   QLabel m_port_label;
+  QLabel m_root_label;
   QLabel m_log_label;
   QTextBrowser m_log;
   QTimer m_timer;

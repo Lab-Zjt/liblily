@@ -3,10 +3,12 @@
 ControllerView::ControllerView()
     : m_addr(this),
       m_port(this),
+      m_root(this),
       m_start(this),
       m_stop(this),
       m_addr_label(this),
       m_port_label(this),
+      m_root_label(this),
       m_log_label(this),
       m_log(this),
       m_timer(this),
@@ -14,17 +16,20 @@ ControllerView::ControllerView()
   this->resize(1024, 768);
   m_addr_label.setText("地址");
   m_port_label.setText("端口");
+  m_root_label.setText("根目录");
   m_log_label.setText("日志");
   m_start.setText("启动");
   m_stop.setText("停止");
   m_addr.setGeometry(100, 20, 200, 25);
   m_port.setGeometry(100, 55, 200, 25);
-  m_start.setGeometry(400, 55, 100, 25);
-  m_stop.setGeometry(400, 55, 100, 25);
+  m_root.setGeometry(100, 90, 200, 25);
+  m_start.setGeometry(400, 90, 100, 25);
+  m_stop.setGeometry(400, 90, 100, 25);
   m_addr_label.setGeometry(20, 20, 60, 25);
   m_port_label.setGeometry(20, 55, 60, 25);
-  m_log_label.setGeometry(20, 90, 60, 25);
-  m_log.setGeometry(100, 90, 600, 600);
+  m_root_label.setGeometry(20, 90, 120, 25);
+  m_log_label.setGeometry(20, 125, 60, 25);
+  m_log.setGeometry(100, 125, 600, 600);
   m_addr.show();
   m_port.show();
   m_start.show();
@@ -58,7 +63,9 @@ ControllerView::ControllerView()
 }
 
 void ControllerView::onStartButtonClick(bool) {
-  if (auto err = m_ctl.StartNewServer(m_addr.text().toStdString(), m_port.text().toUShort());err != NoError) {
+  if (auto
+        err = m_ctl.StartNewServer(m_addr.text().toStdString(), m_port.text().toUShort(), m_root.text().toStdString());
+      err != NoError) {
     m_log.append("Start server failed: ");
     m_log.append(err.desc);
   } else {
