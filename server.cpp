@@ -18,7 +18,7 @@ Arr<T> NewArr(size_t t) {
 
 using namespace lily;
 
-#define _case(var, chan, ...) CreateCase(chan, [](typename decltype(chan)::value_type var){__VA_ARGS__})
+#define _case(var, chan, ...) CreateCase(chan, [&](typename decltype(chan)::value_type var){__VA_ARGS__})
 
 Main(int argc, char **argv) {
   Channel<int> ci;
@@ -34,6 +34,9 @@ Main(int argc, char **argv) {
         ),
         _case(s, cs,
               std::cout << "string: " << s << std::endl;
+        ),
+        _case(_, _default,
+              std::cout << "default: " << std::endl;
         )
     );
     for (;;) {
