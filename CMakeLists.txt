@@ -3,12 +3,12 @@
 cmake_minimum_required(VERSION 3.10)
 project(lily)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS " -CC -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare -Wno-unused-result -Wno-unused-value -Wno-unused-variable -pedantic -g -rdynamic -fPIC -Wno-unused-but-set-parameter")
-#set(CMAKE_BUILD_TYPE RELEASE)
+set(CMAKE_BUILD_TYPE RELEASE)
 
-include_directories(/usr/local/include/)
-link_directories(/usr/local/lib/boost/lib/)
+include_directories(/home/sora/local/boost_1_70_0)
+link_directories(/home/sora/local/boost_1_70_0/stage/lib)
 
 
 file(GLOB hook_src src/hook/*.cpp)
@@ -19,7 +19,7 @@ file(GLOB controller_src src/app/controller/*.cpp)
 add_library(hook ${hook_src})
 add_library(net ${net_src})
 add_library(lily ${lily_src})
-#
+
 #add_executable(server server.cpp)
 #add_executable(client client.cpp)
 add_executable(http_server src/app/http_server/http_server.cpp)

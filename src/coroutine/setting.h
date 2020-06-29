@@ -1,6 +1,6 @@
 #ifndef LIBLILY_SRC_COROUTINE_SETTING_H_
 #define LIBLILY_SRC_COROUTINE_SETTING_H_
 
-#define MaxThreadNum 4
+#define MaxThreadNum 8
 
 #endif

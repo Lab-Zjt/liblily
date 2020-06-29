@@ -1,5 +1,6 @@
 @startuml LilyCallGraph
 
+skinparam monochrome true
 start 
 : main;
 : 通过Dispatcher，\n将Main函数加入到一个Manager中，\n并启动该Manager，\n产生一个新线程;

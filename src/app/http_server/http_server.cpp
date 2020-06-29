@@ -29,19 +29,26 @@ void countReqTimes(const http::Request &req, http::Response &rsp) {
 }
 
 void handler(const http::Request &req, http::Response &rsp, const std::string &root) {
-  if (req.path == "/task_count") {
+  if (req.raw_path == "/task_count") {
     auto count = std::to_string(lily::Dispatcher::Get().GetTaskCount());
     LogInfo << "task count is " << count;
     rsp.Write(span(count));
     return;
   }
+  if (req.raw_path == "/donate") {
+    rsp.status_code = http::StatusCode::StatusPaymentRequired;
+    char msg[] = "我很可爱，请给我钱";
+    rsp.Write(span(msg, sizeof(msg)));
+    LogInfo << req.method << " " << req.raw_path << " " << rsp.status_code;
+    return;
+  }
   // avoid hacker :(
-  if (req.path.find("/../") != std::string::npos) {
+  if (req.url.path.find("/../") != std::string::npos) {
     http::NotFound(req, rsp);
   } else {
-    auto str = read_all(root + req.path);
+    auto str = read_all(root + req.url.path);
     if (str) {
-      rsp.header.Add("Content-Type", get_mime(req.path));
+      rsp.header.Add("Content-Type", get_mime(req.url.path));
       if (auto[c, err] = rsp.Write(span(*str)); err != NoError) {
         LogError << "write back failed. " << err.desc;
       } else {
@@ -51,7 +58,7 @@ void handler(const http::Request &req, http::Response &rsp, const std::string &r
       http::NotFound(req, rsp);
     }
   }
-  LogInfo << req.method << " " << req.path << " " << rsp.status_code;
+  LogInfo << req.method << " " << req.raw_path << " " << rsp.status_code;
 }
 
 Main(int argc, char *argv[]) {

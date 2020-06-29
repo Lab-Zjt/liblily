@@ -15,7 +15,8 @@ namespace lily {
       if (e2 == std::string::npos) {
         return Error{"parse path error"};
       }
-      req.path = str.substr(off, e2 - off);
+      req.raw_path = str.substr(off, e2 - off);
+      req.url = URL::Parse(req.raw_path);
       off = e2 + 1;
       auto e3 = str.find('/', off);
       if (e3 == std::string::npos) {

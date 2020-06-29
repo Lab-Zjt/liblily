@@ -1,0 +1,31 @@
+@startuml Controller
+skinparam monochrome true
+actor "用户" as User
+actor "客户端" as Client
+participant "控制面板" as Controller
+participant "HTTP服务器" as Server
+
+activate Controller
+User -> Controller : 地址、端口、根目录，按下启动按钮
+Controller -> Server : 启动子进程
+activate Server
+Controller -> Server : <StartServerNotify(监听地址、端口、根目录)>
+Server -> Server : 监听对应地址、端口、根目录
+Server -> Controller : <LogNotify(启动成功)>
+Controller -> User : 显示日志信息
+...
+Client -> Server : HTTP请求
+Server -> Server : 处理请求
+Server -> Client : HTTP响应
+Server -> Controller : <LogNotify(请求内容、结果)>
+Controller -> User : 显示日志信息
+...
+User -> Controller :  按下停止按钮
+Controller -> Server : <StopServerNotify>
+Server -> Server : 停止监听线程
+Server -> Controller : <LogNotify(停止成功)>
+deactivate Server
+Controller -> User : 打印日志信息
+deactivate Controller
+
+@enduml

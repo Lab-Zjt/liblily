@@ -206,7 +206,7 @@ namespace lily {
     }
     return {Client::FromSocket(std::move(peer)), NoError};
   }
-  int TCPServer::Backlog = 128;
+  int TCPServer::Backlog = 2048;
   UDPServer::UDPServer(const char *ip, uint16_t port) : m_sock(GetFamily(ip), NetProtocol::UDP, 0) {
     m_sock.m_local = Address(ip, port);
     int err = bind(m_sock.m_fd, m_sock.m_local.Base(), m_sock.m_local.AddressSize());

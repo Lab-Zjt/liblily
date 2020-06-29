@@ -1,0 +1,16 @@
+@startuml ctl
+skinparam monochrome true
+
+while (用户未关闭程序)
+    :用户按下启动按钮;
+    :创建子进程，启动HTTP服务器;
+    :启动新线程;
+    :监听HTTP服务器连接;
+    :发送StartServerNotify;
+    :接收LogNotify并打印，直到用户按下停止按钮;
+    :发送StopServerNotify;
+    :等待用户按下启动按钮;
+endwhile
+:程序结束;
+
+@enduml

@@ -27,6 +27,7 @@ inline static std::unordered_map<std::string, std::string> mime_map = {
     {".exe", "application/octet-stream"},
     {".bin", "application/octet-stream"},
     {".class", "application/octet-stream"},
+    {".pdf", "application/pdf"}
 };
 
 inline static const std::string default_mime("text/plain; charset=utf-8");

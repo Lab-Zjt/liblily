@@ -5,6 +5,7 @@
 #include "status_code.h"
 #include "../../interface/io.h"
 #include "../../common/slice.h"
+#include <iostream>
 
 namespace lily {
   namespace http {
@@ -31,7 +32,8 @@ namespace lily {
       }
       R<ssize_t, Error> WriteHeader() {
         m_header_wrote = true;
-        auto str = "HTTP/" + version + " " + std::to_string(status_code) + StatusDesc[status_code] + "\r\n";
+        if (version.empty()) version = "1.1";
+        auto str = "HTTP/" + version + " " + std::to_string(status_code) + ' ' + StatusDesc[status_code] + "\r\n";
         bool has_content_length = false;
         for (auto &&h : header.Get()) {
           if (h.first == "Content-Length") {

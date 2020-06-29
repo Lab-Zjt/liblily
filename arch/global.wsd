@@ -1,0 +1,20 @@
+@startuml Global
+skinparam monochrome true
+
+rectangle "用户" as User
+
+rectangle "控制面板" as Controller
+
+rectangle "HTTP服务器" as Server
+
+User -right-> Controller : "输入监听地址、端口|启动、暂停"
+Controller -up-> Server : "配置"
+Server -down-> Controller : "日志"
+Controller -left-> User : "展示日志"
+
+rectangle "客户端" as Client
+
+Client -right-> Server : "请求"
+Server -left-> Client : "响应"
+
+@enduml

@@ -87,12 +87,12 @@ void ControllerView::onStopButtonClick(bool) {
 }
 
 void ControllerView::onTick() {
-  Delegate delegate;
+  ActionList actionList;
   {
     std::lock_guard lock(m_mtx);
-    delegate.swap(m_actions);
+    actionList.swap(m_actions);
   }
-  for (auto &&action : delegate) {
+  for (auto &&action : actionList) {
     action();
   }
   m_timer.setInterval(tick);

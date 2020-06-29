@@ -1,0 +1,15 @@
+@startuml server
+skinparam monochrome true
+
+:连接控制面板;
+:接收StartServerNotify;
+:启动协程，监听客户端连接;
+while(没有收到StopServerNotify)
+    :接受客户端连接;
+    :启动协程处理该连接;
+    :从连接处读取请求并解析请求，返回对应文件;
+    :将日志通过LogNotify发送给控制面板;
+endwhile
+:终止所有协程，退出程序;
+
+@enduml

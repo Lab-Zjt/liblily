@@ -11,8 +11,8 @@
 #include <mutex>
 
 using Action = std::function<void()>;
-using Delegate = std::vector<Action>;
-inline static Delegate &operator+=(Delegate &d, Action &&action) {
+using ActionList = std::vector<Action>;
+inline static ActionList &operator+=(ActionList &d, Action &&action) {
   d.emplace_back(std::move(action));
   return d;
 }
@@ -33,7 +33,7 @@ class ControllerView : public QWidget {
   QTextBrowser m_log;
   QTimer m_timer;
   Controller m_ctl;
-  Delegate m_actions;
+  ActionList m_actions;
   std::mutex m_mtx;
   bool m_running = false;
  public:
